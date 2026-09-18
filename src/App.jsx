@@ -1,6 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
+
+// ============================================================================
+// ANIMATION VARIANTS
+// ============================================================================
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } }
+};
+
+const todoItemVariants = {
+  hidden: { opacity: 0, x: -40, scale: 0.95 },
+  visible: {
+    opacity: 1, x: 0, scale: 1,
+    transition: { duration: 0.35, ease: 'easeOut' }
+  },
+  exit: {
+    opacity: 0, x: 40, scale: 0.9,
+    transition: { duration: 0.25, ease: 'easeIn' }
+  }
+};
+
+const staggerContainer = {
+  visible: { transition: { staggerChildren: 0.07 } }
+};
 
 // ============================================================================
 // MAIN APP COMPONENT
@@ -8,24 +34,21 @@ import './App.css';
 
 function App() {
   const [todos, setTodos] = useState([]);
-  const [filter, setFilter] = useState('all'); // 'all', 'active', 'completed'
+  const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [inputError, setInputError] = useState('');
+  const [shake, setShake] = useState(false);
 
-  // Load todos from localStorage on mount
   useEffect(() => {
     try {
       const savedTodos = localStorage.getItem('todos');
-      if (savedTodos) {
-        setTodos(JSON.parse(savedTodos));
-      }
+      if (savedTodos) setTodos(JSON.parse(savedTodos));
     } catch (error) {
       console.error('Error loading todos from localStorage:', error);
     }
   }, []);
 
-  // Save todos to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem('todos', JSON.stringify(todos));
@@ -34,177 +57,249 @@ function App() {
     }
   }, [todos]);
 
-  // Add a new todo
   const handleAddTodo = (e) => {
     e.preventDefault();
-    
     if (!inputValue.trim()) {
       setInputError('Công việc không thể trống!');
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
       return;
     }
-    
     setInputError('');
-    
     const newTodo = {
-      id: Date.now(), // Simple unique ID
+      id: Date.now(),
       text: inputValue.trim(),
       done: false
     };
-    
     setTodos([...todos, newTodo]);
     setInputValue('');
   };
 
-  // Toggle todo completion status
   const handleToggleTodo = (id) => {
     setTodos(todos.map(todo =>
       todo.id === id ? { ...todo, done: !todo.done } : todo
     ));
   };
 
-  // Delete a todo
   const handleDeleteTodo = (id) => {
     setTodos(todos.filter(todo => todo.id !== id));
   };
 
-  // Delete all todos
   const handleDeleteAll = () => {
     if (window.confirm('Bạn chắc chắn muốn xóa tất cả công việc?')) {
       setTodos([]);
     }
   };
 
-  // Filter todos based on status
   const filteredByStatus = todos.filter(todo => {
     if (filter === 'active') return !todo.done;
     if (filter === 'completed') return todo.done;
-    return true; // 'all'
+    return true;
   });
 
-  // Further filter by search term
   const filteredTodos = filteredByStatus.filter(todo =>
     todo.text.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Calculate statistics
   const stats = {
     total: todos.length,
     completed: todos.filter(t => t.done).length,
     active: todos.filter(t => !t.done).length
   };
 
+  const completionPct = stats.total > 0
+    ? Math.round((stats.completed / stats.total) * 100)
+    : 0;
+
   return (
     <div className="app">
-      <header className="app__header">
-        <h1>📝 Ứng Dụng Todo</h1>
-      </header>
+      {/* Animated background orbs */}
+      <div className="bg-orb bg-orb--1" aria-hidden="true" />
+      <div className="bg-orb bg-orb--2" aria-hidden="true" />
+      <div className="bg-orb bg-orb--3" aria-hidden="true" />
 
-      <main className="app__main">
+      <motion.div
+        className="container"
+        initial="hidden"
+        animate="visible"
+        variants={staggerContainer}
+      >
+        {/* Header */}
+        <motion.header className="header" variants={fadeInUp}>
+          <div className="header__icon">✅</div>
+          <h1 className="header__title">Todo<span>App</span></h1>
+          <p className="header__subtitle">Quản lý công việc thông minh</p>
+        </motion.header>
+
+        {/* Progress Bar */}
+        {stats.total > 0 && (
+          <motion.div className="progress-card" variants={fadeInUp}>
+            <div className="progress-card__header">
+              <span>Tiến độ hoàn thành</span>
+              <span className="progress-card__pct">{completionPct}%</span>
+            </div>
+            <div className="progress-bar">
+              <motion.div
+                className="progress-bar__fill"
+                initial={{ width: 0 }}
+                animate={{ width: `${completionPct}%` }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {/* Stats */}
+        <motion.div variants={fadeInUp}>
+          <Stats stats={stats} />
+        </motion.div>
+
         {/* Add Todo Form */}
-        <form className="app__form" onSubmit={handleAddTodo} noValidate>
-          <div className="form-group">
-            <label htmlFor="todo-input">Thêm Công Việc Mới</label>
-            <input
-              id="todo-input"
-              type="text"
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                if (inputError) setInputError('');
-              }}
-              placeholder="Nhập nội dung công việc..."
-              aria-invalid={!!inputError}
-              aria-describedby={inputError ? 'input-error' : undefined}
-            />
-            {inputError && (
-              <span id="input-error" className="error" role="alert">
-                {inputError}
-              </span>
-            )}
+        <motion.form
+          className={`form-card ${shake ? 'form-card--shake' : ''}`}
+          onSubmit={handleAddTodo}
+          noValidate
+          variants={fadeInUp}
+        >
+          <div className="form-card__input-row">
+            <div className="form-group">
+              <label htmlFor="todo-input">➕ Thêm Công Việc Mới</label>
+              <input
+                id="todo-input"
+                type="text"
+                value={inputValue}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  if (inputError) setInputError('');
+                }}
+                placeholder="Nhập nội dung công việc..."
+                aria-invalid={!!inputError}
+                aria-describedby={inputError ? 'input-error' : undefined}
+                autoComplete="off"
+              />
+              <AnimatePresence>
+                {inputError && (
+                  <motion.span
+                    id="input-error"
+                    className="error"
+                    role="alert"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                  >
+                    ⚠️ {inputError}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+            <motion.button
+              type="submit"
+              className="btn btn--add"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Thêm
+            </motion.button>
           </div>
-          <button type="submit" className="btn btn--primary">
-            Thêm
-          </button>
-        </form>
+        </motion.form>
 
-        {/* Search Bar */}
-        <div className="search-bar">
-          <label htmlFor="search-input">Tìm Kiếm</label>
+        {/* Search */}
+        <motion.div className="search-card" variants={fadeInUp}>
+          <span className="search-card__icon">🔍</span>
           <input
             id="search-input"
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Tìm kiếm công việc..."
+            aria-label="Tìm kiếm công việc"
           />
-        </div>
+          {searchTerm && (
+            <motion.button
+              className="search-card__clear"
+              onClick={() => setSearchTerm('')}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              whileTap={{ scale: 0.9 }}
+              aria-label="Xóa tìm kiếm"
+            >
+              ✕
+            </motion.button>
+          )}
+        </motion.div>
 
         {/* Filter Bar */}
-        <FilterBar currentFilter={filter} onFilterChange={setFilter} />
-
-        {/* Statistics */}
-        <Stats stats={stats} />
+        <motion.div variants={fadeInUp}>
+          <FilterBar currentFilter={filter} onFilterChange={setFilter} />
+        </motion.div>
 
         {/* Todo List */}
-        {filteredTodos.length > 0 ? (
-          <TodoList
-            todos={filteredTodos}
-            onToggle={handleToggleTodo}
-            onDelete={handleDeleteTodo}
-          />
-        ) : (
-          <p className="empty-state">
-            {todos.length === 0
-              ? 'Không có công việc nào. Thêm một công việc mới!'
-              : 'Không tìm thấy công việc phù hợp.'}
-          </p>
-        )}
+        <motion.div className="list-wrapper" variants={fadeInUp}>
+          <AnimatePresence mode="popLayout">
+            {filteredTodos.length > 0 ? (
+              <motion.ul
+                className="todo-list"
+                aria-label="Danh sách công việc"
+                variants={staggerContainer}
+                initial="hidden"
+                animate="visible"
+              >
+                <AnimatePresence>
+                  {filteredTodos.map(todo => (
+                    <TodoItem
+                      key={todo.id}
+                      todo={todo}
+                      onToggle={handleToggleTodo}
+                      onDelete={handleDeleteTodo}
+                    />
+                  ))}
+                </AnimatePresence>
+              </motion.ul>
+            ) : (
+              <motion.div
+                className="empty-state"
+                key="empty"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="empty-state__icon">
+                  {todos.length === 0 ? '📋' : '🔎'}
+                </div>
+                <p>
+                  {todos.length === 0
+                    ? 'Chưa có công việc nào. Hãy thêm ngay!'
+                    : 'Không tìm thấy công việc phù hợp.'}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
-        {/* Delete All Button */}
-        {todos.length > 0 && (
-          <button
-            onClick={handleDeleteAll}
-            className="btn btn--danger"
-            style={{ width: '100%', marginTop: '16px' }}
-          >
-            Xóa Tất Cả
-          </button>
-        )}
-      </main>
+        {/* Delete All */}
+        <AnimatePresence>
+          {todos.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+            >
+              <motion.button
+                onClick={handleDeleteAll}
+                className="btn btn--danger-full"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                🗑️ Xóa Tất Cả ({stats.total})
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
-
-// ============================================================================
-// TODO LIST COMPONENT
-// ============================================================================
-
-function TodoList({ todos, onToggle, onDelete }) {
-  return (
-    <ul className="todo-list" aria-label="Danh sách công việc">
-      {todos.map(todo => (
-        <TodoItem
-          key={todo.id}
-          todo={todo}
-          onToggle={onToggle}
-          onDelete={onDelete}
-        />
-      ))}
-    </ul>
-  );
-}
-
-TodoList.propTypes = {
-  todos: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      text: PropTypes.string.isRequired,
-      done: PropTypes.bool.isRequired
-    })
-  ).isRequired,
-  onToggle: PropTypes.func.isRequired,
-  onDelete: PropTypes.func.isRequired
-};
 
 // ============================================================================
 // TODO ITEM COMPONENT
@@ -212,23 +307,46 @@ TodoList.propTypes = {
 
 function TodoItem({ todo, onToggle, onDelete }) {
   return (
-    <li className={`todo-item ${todo.done ? 'todo-item--completed' : ''}`}>
-      <input
-        type="checkbox"
-        checked={todo.done}
-        onChange={() => onToggle(todo.id)}
-        className="todo-item__checkbox"
-        aria-label={`Đánh dấu hoàn thành: ${todo.text}`}
-      />
+    <motion.li
+      className={`todo-item ${todo.done ? 'todo-item--completed' : ''}`}
+      variants={todoItemVariants}
+      layout
+      exit="exit"
+      whileHover={{ x: 4 }}
+    >
+      <motion.label className="todo-item__checkbox-wrap" whileTap={{ scale: 0.85 }}>
+        <input
+          type="checkbox"
+          checked={todo.done}
+          onChange={() => onToggle(todo.id)}
+          className="todo-item__checkbox-input"
+          aria-label={`Đánh dấu hoàn thành: ${todo.text}`}
+        />
+        <span className={`todo-item__checkbox ${todo.done ? 'todo-item__checkbox--checked' : ''}`}>
+          {todo.done && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 400 }}
+            >
+              ✓
+            </motion.span>
+          )}
+        </span>
+      </motion.label>
+
       <span className="todo-item__text">{todo.text}</span>
-      <button
+
+      <motion.button
         onClick={() => onDelete(todo.id)}
-        className="btn btn--small btn--danger"
+        className="btn btn--delete"
         aria-label={`Xóa công việc: ${todo.text}`}
+        whileHover={{ scale: 1.15, rotate: 10 }}
+        whileTap={{ scale: 0.85 }}
       >
-        ✕
-      </button>
-    </li>
+        🗑️
+      </motion.button>
+    </motion.li>
   );
 }
 
@@ -248,22 +366,31 @@ TodoItem.propTypes = {
 
 function FilterBar({ currentFilter, onFilterChange }) {
   const filters = [
-    { value: 'all', label: 'Tất Cả' },
-    { value: 'active', label: 'Chưa Hoàn Thành' },
-    { value: 'completed', label: 'Đã Hoàn Thành' }
+    { value: 'all', label: '📋 Tất Cả' },
+    { value: 'active', label: '⏳ Chưa Xong' },
+    { value: 'completed', label: '✅ Đã Xong' }
   ];
 
   return (
     <div className="filter-bar" role="group" aria-label="Lọc công việc">
       {filters.map(f => (
-        <button
+        <motion.button
           key={f.value}
           onClick={() => onFilterChange(f.value)}
           className={`btn btn--filter ${currentFilter === f.value ? 'btn--filter--active' : ''}`}
           aria-pressed={currentFilter === f.value}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           {f.label}
-        </button>
+          {currentFilter === f.value && (
+            <motion.span
+              className="filter-active-dot"
+              layoutId="activeFilter"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+        </motion.button>
       ))}
     </div>
   );
@@ -275,24 +402,38 @@ FilterBar.propTypes = {
 };
 
 // ============================================================================
-// STATISTICS COMPONENT
+// STATS COMPONENT
 // ============================================================================
 
 function Stats({ stats }) {
+  const items = [
+    { label: 'Tổng Cộng', value: stats.total, icon: '📊', color: 'stat--total' },
+    { label: 'Chưa Hoàn', value: stats.active, icon: '⏳', color: 'stat--active' },
+    { label: 'Đã Hoàn', value: stats.completed, icon: '✅', color: 'stat--done' }
+  ];
+
   return (
     <div className="stats">
-      <div className="stat">
-        <span className="stat__number">{stats.total}</span>
-        <span className="stat__label">Tổng Cộng</span>
-      </div>
-      <div className="stat">
-        <span className="stat__number">{stats.active}</span>
-        <span className="stat__label">Chưa Hoàn</span>
-      </div>
-      <div className="stat">
-        <span className="stat__number">{stats.completed}</span>
-        <span className="stat__label">Đã Hoàn</span>
-      </div>
+      {items.map((item) => (
+        <motion.div
+          key={item.label}
+          className={`stat ${item.color}`}
+          whileHover={{ scale: 1.05, y: -4 }}
+          transition={{ type: 'spring', stiffness: 300 }}
+        >
+          <span className="stat__icon">{item.icon}</span>
+          <motion.span
+            className="stat__number"
+            key={item.value}
+            initial={{ scale: 0.7, opacity: 0.5 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            {item.value}
+          </motion.span>
+          <span className="stat__label">{item.label}</span>
+        </motion.div>
+      ))}
     </div>
   );
 }
