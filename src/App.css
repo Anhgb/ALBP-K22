@@ -40,7 +40,7 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
+  background: #0d0d1a;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
@@ -61,13 +61,8 @@ body {
   padding: 24px 16px 80px;
   position: relative;
   overflow: hidden;
-  /* subtle dark gradient overlay so text stays legible over Three.js */
-  background: linear-gradient(
-    135deg,
-    rgba(13,13,26,0.82) 0%,
-    rgba(20,10,40,0.75) 50%,
-    rgba(10,20,35,0.82) 100%
-  );
+  /* TRANSPARENT so Three.js canvas (position:fixed, z-index:0) shows through */
+  background: transparent;
 }
 
 /* ============================================================================
