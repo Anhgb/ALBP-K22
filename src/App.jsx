@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import ThreeBackground from './ThreeBackground';
 import './App.css';
 
 // ============================================================================
@@ -212,9 +213,7 @@ function App() {
 
   return (
     <div className="app">
-      <div className="bg-orb bg-orb--1" aria-hidden="true" />
-      <div className="bg-orb bg-orb--2" aria-hidden="true" />
-      <div className="bg-orb bg-orb--3" aria-hidden="true" />
+      <ThreeBackground />
 
       <motion.div className="container" initial="hidden" animate="visible" variants={stagger}>
 
