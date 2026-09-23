@@ -96,8 +96,7 @@ export default function ThreeBackground() {
 
     function animate() {
       animId = requestAnimationFrame(animate);
-      const t     = clock.getElapsedTime();
-      const delta = clock.getDelta ? 0.016 : 0.016;
+      const t = clock.getElapsedTime();
 
       // Particle drift
       particles.rotation.y = t * 0.045;
